@@ -1,0 +1,15 @@
+{
+    "name": "hoppithek/project-board",
+    "description": "A project board for Jira Server",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Armin Hopp",
+            "email": "armin.hopp@check24.de"
+        }
+    ],
+    "require": {
+        "lesstif/php-jira-rest-client": "^2.6"
+    }
+}

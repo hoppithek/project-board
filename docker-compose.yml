@@ -1,0 +1,18 @@
+version: '3.6'
+
+services:
+
+  composer:
+    image: composer:2.1.9
+    volumes:
+      - .:/app
+
+  serve:
+    image: webdevops/php-nginx:8.0
+    volumes:
+      - .:/app
+    environment:
+      WEB_DOCUMENT_ROOT: /app/public
+    ports:
+      - "8020:80"
+      - "8043:443"
