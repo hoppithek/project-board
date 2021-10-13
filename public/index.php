@@ -1,4 +1,6 @@
 <?php
+ini_set('error_reporting', E_ALL);
+ini_set('display_errors', 'on');
 
 include dirname(__DIR__) . "/vendor/autoload.php";
 use JiraRestApi\Issue\IssueService;
@@ -117,13 +119,13 @@ try {
     foreach ($issuesResult->issues as $issue) {
         try {
             $key = $issue->key;
-            $issueDetails[$key] = EpicStruct::fromIssue($issueService->get($key, ['fields' => $config->fields, 'expand' => $config->expand]));
+            $issueDetails[] = EpicStruct::fromIssue($issueService->get($key, ['fields' => $config->fields, 'expand' => $config->expand]));
         } catch (\Throwable $ex) {
             // ignore for now
         }
     }
 
-    renderView($issueDetails);
+    renderView(...$issueDetails);
 
     #header('Content-Type: application/json');
     #echo json_encode([
