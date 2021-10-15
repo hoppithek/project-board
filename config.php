@@ -1,20 +1,17 @@
 <?php
 
 return (object)[
+    'jqlQuery' => 'filter=64304',
+    'epicLinkCustomField' => '10006',
     'fields' => [
-        // default: '*all'
         'summary',
         'assignee',
-        'developer',
-        'customfield_10006',
-        'customfield_10603',
-        'key',
+        'customfield_10603', // developer
+        'issuetype',
+        'priority',
+        'worklog',
+        'status',
+        'duedate',
     ],
-    'expand' => ['work_log'],
-    'fieldLabels' =>  [
-        'customfield_10603' => 'IT Lead',
-        'assignee' => 'PM Lead',
-        'summary' => 'Projekt',
-        'key' => 'Epic',
-    ],
+    'expand' => ['worklog', 'customfield_10603'],
 ];
