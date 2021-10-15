@@ -8,11 +8,17 @@ services:
       - .:/app
 
   serve:
-    image: webdevops/php-nginx:8.0
+    image: webdevops/php-nginx-dev:8.0
     volumes:
       - .:/app
     environment:
       WEB_DOCUMENT_ROOT: /app/public
+      XDEBUG_MODE: "debug"
+      XDEBUG_REMOTE_AUTOSTART: "ON"
+      XDEBUG_CLIENT_HOST: "172.17.0.1"
+      XDEBUG_CLIENT_PORT: "9000"
+      XDEBUG_IDE_KEY: "PHPSTORM"
+      XDEBUG_START_WITH_REQUEST: "yes"
     ports:
       - "8020:80"
       - "8043:443"
