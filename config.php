@@ -14,4 +14,5 @@ return (object)[
         'duedate',
     ],
     'expand' => ['worklog', 'customfield_10603'],
+    'subAggregateKeyPrefixes' => [],
 ];
