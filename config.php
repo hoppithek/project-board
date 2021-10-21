@@ -12,6 +12,7 @@ return (object)[
         'worklog',
         'status',
         'duedate',
+        'timetracking',
     ],
     'expand' => ['worklog', 'customfield_10603'],
     'subAggregateKeyPrefixes' => [],
