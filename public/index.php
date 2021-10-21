@@ -147,9 +147,9 @@ class ViewRenderer {
 
 class EpicStruct extends \stdClass
 {
-    private const STATUS_CATEGORY_NEW = 2;
-    private const STATUS_CATEGORY_IN_PROGRESS = 4;
-    private const STATUS_CATEGORY_DONE = 3;
+    public const STATUS_CATEGORY_NEW = 2;
+    public const STATUS_CATEGORY_IN_PROGRESS = 4;
+    public const STATUS_CATEGORY_DONE = 3;
 
     public string $key;
     public string $itLeadDisplayName;
@@ -186,13 +186,19 @@ class EpicStruct extends \stdClass
         return $this->status->name;
     }
 
+    public function getStatusCategoryId(): string {
+        return $this->status->statuscategory->id;
+    }
+
     public function getStatusColor(): string {
-        return match ($this->status->statuscategory->id) {
-            self::STATUS_CATEGORY_DONE => 'green',
-            self::STATUS_CATEGORY_IN_PROGRESS => 'red',
-            self::STATUS_CATEGORY_NEW => 'blue',
-            default => 'blue',
-        };
+        switch ($this->status->statuscategory->id) {
+            case self::STATUS_CATEGORY_DONE: return 'green';
+
+            case self::STATUS_CATEGORY_IN_PROGRESS: return 'red';
+
+            case self::STATUS_CATEGORY_NEW:
+            default: return 'blue';
+        }
     }
 
     private function getProgress(array $keyPrefixes = []): array
@@ -274,6 +280,8 @@ class ProjectBoard {
         try {
             $epics = $this->getProjectIssues();
 
+            uasort($epics, $this->getCmpByStatusCategory());
+
             $this->addLinkedIssues($epics);
 
             $this->renderer->render($this->getSubAggregateKeyPrefixes(), ...$epics);
@@ -336,6 +344,14 @@ class ProjectBoard {
     {
 
         return array_unique((array) $_GET['subAggregateKeyPrefixes'] ?? $this->config->subAggregateKeyPrefixes ?? []);
+    }
+
+    private function getCmpByStatusCategory(): callable
+    {
+        $order = $this->config->statusCategoryIdSortOrder;
+        return static function(EpicStruct $a, EpicStruct $b) use ($order) {
+            return array_search($a->getStatusCategoryId(), $order) <=> array_search($b->getStatusCategoryId(), $order);
+        };
     }
 }
 
