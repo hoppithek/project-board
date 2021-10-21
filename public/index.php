@@ -41,7 +41,10 @@ class ViewRenderer {
 
     private const HTML_TABLE_HEAD = <<<'HTML'
         <tr>
-        <th class="p-2">
+        <th class="p-2 col-span-full">
+          <div class="font-semibold text-left">Prio</div>
+        </th>
+        <th class="p-2 col-span-full">
           <div class="font-semibold text-left">Project</div>
         </th>
         <th class="p-2">
@@ -54,10 +57,10 @@ class ViewRenderer {
           <div class="font-semibold text-center">Status</div>
         </th>
         <th class="p-2">
-          <div class="font-semibold text-center">Progress (HOAPI)</div>
+          <div class="font-semibold text-center">Progress (ALL)</div>
         </th>
         <th class="p-2">
-          <div class="font-semibold text-center">Time Spent (HOAPI)</div>
+          <div class="font-semibold text-center">Time Spent (ALL)</div>
         </th>
         <th class="p-2">
           <div class="font-semibold text-center">Due Date</div>
@@ -66,6 +69,9 @@ class ViewRenderer {
 
     private const HTML_TABLE_ROW = <<<'HTML'
         <tr>
+        <td class="p-2">
+          <div><img src="%s" alt="PrioImage" /></div>
+        </td>
         <td class="p-2">
           <div>%s</div>
         </td>
@@ -82,7 +88,7 @@ class ViewRenderer {
           </span></div>
         </td>
         <td>
-          <div class="text-center">%s</div>
+          <div class="text-center">%s <span class="text-gray-400">(%s)</span></div>
           <div class="relative pt-1">
             <div class="overflow-hidden h-2 text-xs flex rounded bg-blue-200">
               <div style="width:%s%%"
@@ -92,7 +98,7 @@ class ViewRenderer {
           </div>
         </td>
         <td>
-          <div>%s</div>
+          <div>%s <span class="text-gray-400">(%s)</span></div>
         </td>
         <td>
           <div class="text-right">%s</div>
@@ -100,28 +106,33 @@ class ViewRenderer {
         </tr>
         HTML;
 
-    public function render(EpicStruct ...$epicStructs): void
+    public function render(array $subAggregatePrefixes, EpicStruct ...$epicStructs): void
     {
         $renderedRows = '';
         foreach ($epicStructs as $epicStruct) {
-            $pmLeadImage = file_get_contents('https://jira.check24.de/secure/useravatar?ownerId=' . $epicStruct->pmLeadKey);
-            $pmLeadImageData = 'data:image/png;' . base64_encode($pmLeadImage);
-            $itLeadImage = file_get_contents('https://jira.check24.de/secure/useravatar?ownerId=' . $epicStruct->itLeadKey);
-            $itLeadImageData = 'data:image/png;' . base64_encode($itLeadImage);
 
             $renderedRows .= sprintf(
                 self::HTML_TABLE_ROW,
+                # Key
+                $epicStruct->priorityImage,
+                # Poject
                 "{$epicStruct->summary} ({$epicStruct->key})",
-                #$itLeadImageData,
+                # PM Lead
                 $epicStruct->pmLeadDisplayName,
-                #$itLeadImageData,
+                # IT Lead
                 $epicStruct->itLeadDisplayName,
+                # Status
                 $epicStruct->getStatusColor(),
                 $epicStruct->getStatusColor(),
                 $epicStruct->getStatus(),
-                sprintf('%s (%s)', $epicStruct->getProgressFormatted(), $epicStruct->getProgressFormatted('HOAPI-')),
+                # Progress
+                $epicStruct->getProgressFormatted($subAggregatePrefixes),
+                $epicStruct->getProgressFormatted(),
                 $epicStruct->getProgressPercent(),
-                sprintf('%s (%s)', $epicStruct->getTimeSpent(), $epicStruct->getTimeSpent('HOAPI-')),
+                # Time spent
+                $epicStruct->getTimeSpent($subAggregatePrefixes),
+                $epicStruct->getTimeSpent(),
+                # Due Date
                 $epicStruct->dueDate()
             );
         }
@@ -131,8 +142,6 @@ class ViewRenderer {
             self::HTML_TABLE_HEAD,
             $renderedRows
         );
-
-        exit;
     }
 }
 
@@ -148,6 +157,7 @@ class EpicStruct extends \stdClass
     public string $pmLeadDisplayName;
     public string $pmLeadKey;
     public string $summary;
+    public string $priorityImage;
     public $issues;
     public \JiraRestApi\Issue\IssueStatus $status;
 
@@ -163,6 +173,7 @@ class EpicStruct extends \stdClass
         $struct->summary = $issue->fields->summary ?? 'no summary set';
         $struct->status = $issue->fields->status;
         $struct->dueDate = $issue->fields->duedate;
+        $struct->priorityImage = $issue->fields->priority->iconUrl ?? '';
 
         return $struct;
     }
@@ -184,24 +195,26 @@ class EpicStruct extends \stdClass
         };
     }
 
-    private function getProgress(string $keyPrefix = ''): array {
-        $len = strlen($keyPrefix);
+    private function getProgress(array $keyPrefixes = []): array
+    {
         $countMatching = 0;
         $countMatchingDone = 0;
-        foreach ($this->issues as $issue) {
-            if ($keyPrefix && substr($issue->key, 0, $len) !== $keyPrefix)
-                continue;
 
-            $countMatching++;
-            if (($issue->fields->status->statuscategory->id ?? 0) === self::STATUS_CATEGORY_DONE)
-                $countMatchingDone++;
+        foreach ($this->issues as $issue) {
+            if ($this->matchesPrefix($issue->key, ...$keyPrefixes)) {
+                $countMatching++;
+
+                if (($issue->fields->status->statuscategory->id ?? 0) === self::STATUS_CATEGORY_DONE)
+                    $countMatchingDone++;
+            }
         }
 
         return [$countMatchingDone, $countMatching];
     }
-    public function getProgressFormatted(string $keyPrefix = ''): string {
 
-        list($countMatchingDone, $countMatching) =  $this->getProgress($keyPrefix);
+    public function getProgressFormatted(array $keyPrefixes = []): string {
+
+        list($countMatchingDone, $countMatching) =  $this->getProgress($keyPrefixes);
 
         return sprintf(
             '%d/%d',
@@ -210,25 +223,38 @@ class EpicStruct extends \stdClass
         );
     }
 
-    public function getProgressPercent(string $keyPrefix = ''): int {
-        list($countMatchingDone, $countMatching) =  $this->getProgress($keyPrefix);
-        return $countMatching ? round(((float)$countMatchingDone/(float)$countMatching)*100) : 0;
+    public function getProgressPercent(array $keyPrefixes = []): int {
+        list($countMatchingDone, $countMatching) =  $this->getProgress($keyPrefixes);
+        return ($countMatching > 0) ? (int)round(((float)$countMatchingDone/(float)$countMatching)*100) : 0;
     }
 
-    public function getTimeSpent(string $keyPrefix = ''): string {
+    public function getTimeSpent(array $keyPrefixes = []): string {
+
         $totalSeconds = 0;
-        $len = strlen($keyPrefix);
         foreach ($this->issues as $issue) {
-            if ($keyPrefix && substr($issue->key, 0, $len) !== $keyPrefix) continue;
-            foreach ($issue->fields->worklog->worklogs as $worklog) {
-                $totalSeconds += $worklog->timeSpentSeconds;
-            }
+            if ($this->matchesPrefix($issue->key, ...$keyPrefixes))
+                foreach ($issue->fields->worklog->worklogs as $worklog) {
+                    $totalSeconds += $worklog->timeSpentSeconds;
+                }
         }
         return (new DateTime('@' . $totalSeconds))->format('d\d h\h i\m');
     }
 
     public function dueDate(): string {
         return $this->dueDate ? (new DateTime($this->dueDate))->format('d.m.Y') : '--';
+    }
+
+    private function matchesPrefix(string $issueKey, string ...$keyPrefixes)
+    {
+        if (count($keyPrefixes) === 0)
+            return true;
+
+        foreach ($keyPrefixes as $keyPrefix) {
+            if ($keyPrefix && mb_substr($issueKey, 0, mb_strlen($keyPrefix)) === $keyPrefix)
+                return true;
+        }
+
+        return false;
     }
 }
 
@@ -250,7 +276,7 @@ class ProjectBoard {
 
             $this->addLinkedIssues($epics);
 
-            $this->renderer->render(...$epics);
+            $this->renderer->render($this->getSubAggregateKeyPrefixes(), ...$epics);
 
         } catch (JiraRestApi\JiraException $e) {
             print("Error Occured! " . $e->getMessage());
@@ -259,7 +285,7 @@ class ProjectBoard {
 
     private function getProjectIssues(): array {
 
-        $result = $this->jira->search($this->config->jqlQuery, 0, 50, $this->config->fields, $this->config->expand);
+        $result = $this->jira->search($this->getJqlQuery(), 0, 50, $this->config->fields, $this->config->expand);
 
         $epics = [];
         foreach ($result->issues as $projectIssue) {
@@ -295,6 +321,21 @@ class ProjectBoard {
                 }
             }
         }
+    }
+
+    private function getJqlQuery(): string
+    {
+        return $_GET['jqlQuery'] ?? $this->config->jqlQuery;
+    }
+
+    /**
+     * ${CARET}@TODO Describe getSubAggregatePrefixes
+     * @return string[]
+     */
+    private function getSubAggregateKeyPrefixes(): array
+    {
+
+        return array_unique((array) $_GET['subAggregateKeyPrefixes'] ?? $this->config->subAggregateKeyPrefixes ?? []);
     }
 }
 
