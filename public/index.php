@@ -160,6 +160,7 @@ class EpicStruct extends \stdClass
     public string $priorityImage;
     public $issues;
     public \JiraRestApi\Issue\IssueStatus $status;
+    private $timeSpentSeconds;
 
     private function __construct() {$this->issues = [];}
 
@@ -174,6 +175,7 @@ class EpicStruct extends \stdClass
         $struct->status = $issue->fields->status;
         $struct->dueDate = $issue->fields->duedate;
         $struct->priorityImage = $issue->fields->priority->iconUrl ?? '';
+        $struct->timeSpentSeconds = $issue->fields->timeTracking->getTimeSpentSeconds() ?? 0;
 
         return $struct;
     }
@@ -236,7 +238,7 @@ class EpicStruct extends \stdClass
 
     public function getTimeSpent(array $keyPrefixes = []): string {
 
-        $totalSeconds = 0;
+        $totalSeconds = $this->timeSpentSeconds;
         foreach ($this->issues as $issue) {
             if ($this->matchesPrefix($issue->key, ...$keyPrefixes))
                 foreach ($issue->fields->worklog->worklogs as $worklog) {
