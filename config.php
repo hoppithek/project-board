@@ -15,4 +15,9 @@ return (object)[
     ],
     'expand' => ['worklog', 'customfield_10603'],
     'subAggregateKeyPrefixes' => [],
+    'statusCategoryIdSortOrder' => [
+        EpicStruct::STATUS_CATEGORY_IN_PROGRESS,
+        EpicStruct::STATUS_CATEGORY_NEW,
+        EpicStruct::STATUS_CATEGORY_DONE,
+    ],
 ];
