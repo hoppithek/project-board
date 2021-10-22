@@ -286,7 +286,7 @@ class ProjectBoard {
 
             $this->addLinkedIssues($epics);
 
-            $this->renderer->render($this->getSubAggregateKeyPrefixes(), ...$epics);
+            $this->renderer->render($this->getSubAggregateKeyPrefixes(), ...array_values($epics));
 
         } catch (JiraRestApi\JiraException $e) {
             print("Error Occured! " . $e->getMessage());
@@ -345,7 +345,7 @@ class ProjectBoard {
     private function getSubAggregateKeyPrefixes(): array
     {
 
-        return array_unique((array) $_GET['subAggregateKeyPrefixes'] ?? $this->config->subAggregateKeyPrefixes ?? []);
+        return array_unique((array) ($_GET['subAggregateKeyPrefixes'] ?? $this->config->subAggregateKeyPrefixes ?? []));
     }
 
     private function getCmpByStatusCategory(): callable
